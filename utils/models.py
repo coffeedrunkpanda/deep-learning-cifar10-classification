@@ -1,7 +1,4 @@
 import tensorflow as tf
-from wandb.integration.keras import WandbMetricsLogger
-
-# ========== MODELS ==========
 
 def baseline_cnn(input_shape:tuple =(32, 32, 3),
                  n_labels:int = 10,
@@ -58,3 +55,8 @@ def deeper_cnn(input_shape:tuple =(32, 32, 3), n_labels:int = 10):
 
     return model
 
+MODELS = {
+    "baseline_cnn": baseline_cnn,
+    "deeper_cnn": deeper_cnn,
+    "simple_cnn": simple_cnn
+}

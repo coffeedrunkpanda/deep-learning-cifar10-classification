@@ -11,6 +11,7 @@ class ExperimentConfig:
     val_split:float = 0.2
     input_shape:tuple = (32, 32, 3)
     normalize:bool = True
+    augment:bool = True
 
 @dataclass
 class WandbConfig:

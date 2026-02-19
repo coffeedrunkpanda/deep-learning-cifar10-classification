@@ -1,8 +1,10 @@
+import os
+import numpy as np
 import tensorflow as tf
 from tensorflow.keras.callbacks import EarlyStopping
 
 import wandb
-from wandb.integration.keras import WandbMetricsLogger, WandbModelCheckpoint
+from wandb.integration.keras import WandbMetricsLogger
 
 from utils.data import build_datasets
 from utils.models import MODELS
@@ -63,15 +65,18 @@ def run_experiment(X_train, y_train,
                 monitor='val_loss',
                 patience=5,
                 restore_best_weights=True
-            ),
-            WandbModelCheckpoint(
-                filepath="best_model.keras",
-                monitor="val_loss",
-                save_best_only=True,
-                mode="max"
-            ),
+            )
         ]
     )
+
+    models_dir = "models/"
+
+    if not os.path.isdir(models_dir):
+        os.mkdir(models_dir)
+
+
+    model.save("models/best_model.keras")
+    wandb.log_artifact("models/best_model.keras", type="model")
 
     # Evaluate and log results: 
     val_loss, val_accuracy = model.evaluate(test_ds)
@@ -80,8 +85,26 @@ def run_experiment(X_train, y_train,
         "final_val_accuracy": val_accuracy
     })
 
+    # log images to wandb
+
+    image_batch, label_batch = next(iter(test_ds))
+    y_pred_probs = model.predict(image_batch)
+    y_pred = np.argmax(y_pred_probs, axis=1)
+
+    wandb_images = [
+        wandb.Image(
+            image_batch[i].numpy(),
+            caption=f"True: {class_names[label_batch[i].numpy().flatten()[0]]} | Pred: {class_names[y_pred[i]]}"
+        )
+        for i in range(len(image_batch))  
+    ]
+    run.log({"prediction_samples": wandb_images})
+
+
     run.finish()
 
+
+    return train_ds, val_ds, test_ds, model, history, run
 
     # TODO: add f1, precision, recall, auc
     

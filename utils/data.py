@@ -1,9 +1,9 @@
 import tensorflow as tf
 from tensorflow.keras.datasets import cifar10
-from tensorflow.keras.layers import Rescaling
+from typing import Callable, Tuple, Optional
 
 from utils.config import ExperimentConfig
-from typing import Callable, Tuple, Optional
+from utils.augmentation import data_augmentation
 
 def load_data():
     
@@ -48,27 +48,39 @@ def build_datasets(
                                 batch_size=config.batch_size,
                                 new_size=config.input_shape,
                                 preprocess_fn=preprocess_fn,
-                                normalize=config.normalize)
+                                normalize=config.normalize,
+                                augment=config.augment)
     
+    # data augmentation is disabled for validation
     val_ds = process_pipeline(val_dataset,
                               batch_size=config.batch_size,
                               new_size=config.input_shape,
                               preprocess_fn=preprocess_fn,
-                              normalize=config.normalize)
+                              normalize=config.normalize,
+                              augment=False)
 
+    # data augmentation is disabled for testing
     test_ds = process_pipeline(test_dataset,
                                batch_size=config.batch_size,
                                new_size=config.input_shape,
                                preprocess_fn=preprocess_fn,
-                               normalize=config.normalize)
+                               normalize=config.normalize,
+                               augment=False)
     
     return train_ds, val_ds, test_ds
 
 
-def process_batch(image, label, preprocess_fn: Optional[Callable] = None, normalize = True, new_size = (96, 96, 3)):
+def process_batch(image, label,
+                  preprocess_fn: Optional[Callable] = None,
+                  normalize = True,
+                  new_size = (96, 96, 3),
+                  augment:bool = True):
     
     image = tf.image.resize(image, (new_size[0], new_size[1]))
-    
+
+    if augment:
+        image = data_augmentation(image, training=True)
+
     # Transfer learning normalization and preprocesing    
     if preprocess_fn:
         image = preprocess_fn(image) 
@@ -76,7 +88,7 @@ def process_batch(image, label, preprocess_fn: Optional[Callable] = None, normal
     if normalize:
         # Default normalization
         image = image/255.0
-
+        
     return image, label
 
 # Apply your batching/preprocessing pipeline to BOTH
@@ -84,13 +96,16 @@ def process_pipeline(ds: tf.data.Dataset,
                      batch_size:int,
                      new_size:tuple[int,int,int],
                      preprocess_fn: Optional[Callable] = None,
-                     normalize: bool = True):
+                     normalize: bool = True,
+                     augment:bool = True):
 
     return (
         ds
         .batch(batch_size)
         .map(
-            lambda image, label: process_batch(image,label,preprocess_fn, normalize, new_size),
+            lambda image, label: process_batch(
+                image,label, preprocess_fn, normalize, new_size, augment
+                ),
              num_parallel_calls=tf.data.AUTOTUNE)
         .prefetch(tf.data.AUTOTUNE)
     )

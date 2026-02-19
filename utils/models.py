@@ -1,11 +1,11 @@
 import tensorflow as tf
 
-def baseline_cnn(input_shape:tuple =(32, 32, 3),
-                 n_labels:int = 10,
-                 conv_kernel_size = (3,3),
-                 dropout = 0.5):
+def baseline_cnn(input_shape:tuple[int,int,int] =(32, 32, 3),
+                 n_labels:int = 10):
     """Simple 3-layer CNN with batch normalization"""
-
+    conv_kernel_size = (3,3) 
+    dropout = 0.5 
+    
     model = tf.keras.Sequential([
     tf.keras.layers.Conv2D(32, conv_kernel_size, activation='relu', input_shape=input_shape),
     tf.keras.layers.BatchNormalization(),

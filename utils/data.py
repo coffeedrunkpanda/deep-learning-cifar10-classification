@@ -1,5 +1,6 @@
 import tensorflow as tf
 from tensorflow.keras.datasets import cifar10
+from tensorflow.keras.layers import Rescaling
 
 from utils.config import ExperimentConfig
 from typing import Callable, Tuple, Optional
@@ -18,6 +19,7 @@ def load_data():
 def build_datasets(
     X_train, y_train,
     X_test, y_test,
+    config:ExperimentConfig,
     preprocess_fn: Optional[Callable] = None,
     val_split: float = 0.2,
     seed: int = 42
@@ -30,7 +32,7 @@ def build_datasets(
     dataset_size = len(X_train)
     train_size = int((1 - val_split) * dataset_size)
 
-    # 1. Build and shuffle full dataset before splitting
+
     full_dataset = (
         tf.data.Dataset
         .from_tensor_slices((X_train, y_train))  # integers, no one-hot
@@ -41,47 +43,50 @@ def build_datasets(
     val_dataset   = full_dataset.skip(train_size)
     test_dataset  = tf.data.Dataset.from_tensor_slices((X_test, y_test))
 
-    return train_dataset, val_dataset, test_dataset
 
-# def build_dataset(X_train, y_train, 
-#                   X_test, y_test,
-#                   preprocess_fn = Optional[Callable] = None,
-#                   val_split: float = 0.2,
-#                   seed:int = 13
-#                   ) -> Tuple[tf.data.Dataset, tf.data.Dataset, tf.data.Dataset]:
+    train_ds = process_pipeline(train_dataset,
+                                batch_size=config.batch_size,
+                                new_size=config.input_shape,
+                                preprocess_fn=preprocess_fn)
+    
+    val_ds = process_pipeline(val_dataset,
+                              batch_size=config.batch_size,
+                              new_size=config.input_shape,
+                              preprocess_fn=preprocess_fn)
 
-#     dataset_size = len(X_train)
-#     train_size = int((1 - val_split) * dataset_size)
+    test_ds = process_pipeline(test_dataset,
+                               batch_size=config.batch_size,
+                               new_size=config.input_shape,
+                               preprocess_fn=preprocess_fn)
+    
+    return train_ds, val_ds, test_ds
 
-#     # 1. Build and shuffle full dataset before splitting
-#     full_dataset = (
-#         tf.data.Dataset
-#         .from_tensor_slices((X_train, y_train))  # integers, no one-hot
-#         .shuffle(buffer_size=1000, seed=seed)
-#     )
 
-#     train_dataset = full_dataset.take(train_size)
-#     val_dataset = full_dataset.skip(train_size)
-#     test_dataset = tf.data.Dataset.from_tensor_slices((X_test, y_test))
+def process_batch(image, label, preprocess_fn: Optional[Callable] = None, new_size = (96, 96, 3)):
+    
+    image = tf.image.resize(image, (new_size[0], new_size[1]))
+    
+    # Transfer learning normalization and preprocesing    
+    if preprocess_fn:
+        image = preprocess_fn(image) 
+    
+    else:
+        # Default normalization
+        image = image/255.0
 
-#     return train_dataset, val_dataset, test_dataset
+    return image, label
 
-# def process_batch(image, label, new_size = (96, 96)):
-#     image = tf.image.resize(image, new_size)
-#     image = preprocess_input(image) 
-#     return image, label
+# Apply your batching/preprocessing pipeline to BOTH
+def process_pipeline(ds: tf.data.Dataset,
+                     batch_size:int,
+                     new_size:tuple[int,int,int],
+                     preprocess_fn: Optional[Callable] = None):
 
-# BATCH_SIZE = 32
-
-# # 3. Apply your batching/preprocessing pipeline to BOTH
-# def process_pipeline(ds):
-#     return (
-#         ds
-#         .batch(BATCH_SIZE)
-#         .map(process_batch, num_parallel_calls=tf.data.AUTOTUNE)
-#         .prefetch(tf.data.AUTOTUNE)
-#     )
-
-# train_ds = process_pipeline(train_dataset)
-# val_ds = process_pipeline(val_dataset)
-# test_ds = process_pipeline(test_dataset)
+    return (
+        ds
+        .batch(batch_size)
+        .map(
+            lambda image, label: process_batch(image,label,preprocess_fn,new_size),
+             num_parallel_calls=tf.data.AUTOTUNE)
+        .prefetch(tf.data.AUTOTUNE)
+    )

@@ -208,3 +208,9 @@ __marimo__/
 
 # W&B
 wandb/
+
+# VSCODE
+.vscode
+
+# Project
+models/

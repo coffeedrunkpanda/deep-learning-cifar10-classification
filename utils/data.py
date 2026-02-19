@@ -47,22 +47,25 @@ def build_datasets(
     train_ds = process_pipeline(train_dataset,
                                 batch_size=config.batch_size,
                                 new_size=config.input_shape,
-                                preprocess_fn=preprocess_fn)
+                                preprocess_fn=preprocess_fn,
+                                normalize=config.normalize)
     
     val_ds = process_pipeline(val_dataset,
                               batch_size=config.batch_size,
                               new_size=config.input_shape,
-                              preprocess_fn=preprocess_fn)
+                              preprocess_fn=preprocess_fn,
+                              normalize=config.normalize)
 
     test_ds = process_pipeline(test_dataset,
                                batch_size=config.batch_size,
                                new_size=config.input_shape,
-                               preprocess_fn=preprocess_fn)
+                               preprocess_fn=preprocess_fn,
+                               normalize=config.normalize)
     
     return train_ds, val_ds, test_ds
 
 
-def process_batch(image, label, preprocess_fn: Optional[Callable] = None, new_size = (96, 96, 3)):
+def process_batch(image, label, preprocess_fn: Optional[Callable] = None, normalize = True, new_size = (96, 96, 3)):
     
     image = tf.image.resize(image, (new_size[0], new_size[1]))
     
@@ -70,7 +73,7 @@ def process_batch(image, label, preprocess_fn: Optional[Callable] = None, new_si
     if preprocess_fn:
         image = preprocess_fn(image) 
     
-    else:
+    if normalize:
         # Default normalization
         image = image/255.0
 
@@ -80,13 +83,14 @@ def process_batch(image, label, preprocess_fn: Optional[Callable] = None, new_si
 def process_pipeline(ds: tf.data.Dataset,
                      batch_size:int,
                      new_size:tuple[int,int,int],
-                     preprocess_fn: Optional[Callable] = None):
+                     preprocess_fn: Optional[Callable] = None,
+                     normalize: bool = True):
 
     return (
         ds
         .batch(batch_size)
         .map(
-            lambda image, label: process_batch(image,label,preprocess_fn,new_size),
+            lambda image, label: process_batch(image,label,preprocess_fn, normalize, new_size),
              num_parallel_calls=tf.data.AUTOTUNE)
         .prefetch(tf.data.AUTOTUNE)
     )

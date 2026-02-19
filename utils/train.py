@@ -1,17 +1,18 @@
-import wandb
-from wandb.integration.keras import WandbMetricsLogger
 import tensorflow as tf
+from tensorflow.keras.callbacks import EarlyStopping
 
-from utils.models import MODELS
+import wandb
+from wandb.integration.keras import WandbMetricsLogger, WandbModelCheckpoint
+
 from utils.data import build_datasets
-
+from utils.models import MODELS
 from utils.config import ExperimentConfig, WandbConfig
 
 def build_model(config:ExperimentConfig , n_labels:int):
     model_fn = MODELS[config.model_name]
 
     model = model_fn(
-        input_shape=config.input_shape,
+        config=config,
         n_labels=n_labels
     )
 
@@ -51,14 +52,36 @@ def run_experiment(X_train, y_train,
     n_labels = len(class_names)
     model = build_model(config, n_labels=n_labels)
     
-    model.fit(
+
+    history = model.fit(
         train_ds,
         validation_data=val_ds,
         epochs=config.epochs,
-        callbacks=[WandbMetricsLogger(log_freq="epoch")]
+        callbacks=[
+            WandbMetricsLogger(log_freq="epoch"),  # Auto-logs all metrics
+            EarlyStopping(
+                monitor='val_loss',
+                patience=5,
+                restore_best_weights=True
+            ),
+            WandbModelCheckpoint(
+                filepath="best_model.keras",
+                monitor="val_loss",
+                save_best_only=True,
+                mode="max"
+            ),
+        ]
     )
 
-    # # Full evaluation on test set
-    # log_per_class_metrics(model, test_ds, y_test, class_names, run)
+    # Evaluate and log results: 
+    val_loss, val_accuracy = model.evaluate(test_ds)
+    wandb.log({
+        "final_val_loss": val_loss,
+        "final_val_accuracy": val_accuracy
+    })
 
     run.finish()
+
+
+    # TODO: add f1, precision, recall, auc
+    

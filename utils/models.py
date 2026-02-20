@@ -95,29 +95,30 @@ def guaxinim_cansado_cnn(config:ExperimentConfig, n_labels:int):
     tf.keras.layers.Conv2D(16, (3, 3), input_shape=config.input_shape, padding="same"),
     tf.keras.layers.BatchNormalization(),
     layers.ReLU(),
+    layers.MaxPooling2D((2, 2)),
 
     # Conv block 2
     tf.keras.layers.Conv2D(16, (3, 3), padding="same"),
     tf.keras.layers.BatchNormalization(),
     layers.ReLU(),
-    tf.keras.layers.Dropout(0.2),
+    layers.Dropout(0.2),
     
     # Conv block 3
     tf.keras.layers.Conv2D(32, (3, 3), padding="same"),
     tf.keras.layers.BatchNormalization(),
     layers.ReLU(),
-    tf.keras.layers.Dropout(0.1),
+    layers.Dropout(0.1),
     
     # Conv block 4
     tf.keras.layers.Conv2D(64, (3, 3)),
     tf.keras.layers.BatchNormalization(),
     layers.ReLU(),
-    
+
     # Conv block 5
     tf.keras.layers.Conv2D(64, (3, 3)),
     tf.keras.layers.BatchNormalization(),
     layers.ReLU(),
-    
+
     # Conv block 6
     tf.keras.layers.Conv2D(128, (3, 3)),
     tf.keras.layers.BatchNormalization(),

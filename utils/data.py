@@ -6,6 +6,16 @@ from utils.config import ExperimentConfig
 from utils.augmentation import data_augmentation
 
 def load_data():
+    """
+    Load the CIFAR-10 dataset from Keras.
+    Returns:
+        tuple: A tuple containing:
+            - X_train (ndarray): Training images with shape (50000, 32, 32, 3)
+            - y_train (ndarray): Training labels with shape (50000, 1)
+            - X_test (ndarray): Test images with shape (10000, 32, 32, 3)
+            - y_test (ndarray): Test labels with shape (10000, 1)
+            - class_names (list): List of 10 class names corresponding to CIFAR-10 categories
+    """
     
     (X_train, y_train), (X_test, y_test) = cifar10.load_data()
 
@@ -25,8 +35,25 @@ def build_datasets(
     seed: int = 42
 ):
     """
-    Splits, shuffles, preprocesses and batches data into
-    train/val/test tf.data pipelines.
+    Builds and preprocesses TensorFlow data pipelines for training, validation, and testing.
+    Splits the training data into train/validation sets, applies shuffling, preprocessing,
+    and batching through a configurable pipeline. Data augmentation is applied only to the
+    training dataset.
+    Args:
+        X_train: Training input features (numpy array or tensor).
+        y_train: Training labels (numpy array or tensor, not one-hot encoded).
+        X_test: Test input features (numpy array or tensor).
+        y_test: Test labels (numpy array or tensor).
+        config (ExperimentConfig): Configuration object.
+        preprocess_fn (Optional[Callable]): Optional custom preprocessing function to apply
+            to each sample. Default is None.
+        val_split (float): Fraction of training data to use for validation. Default is 0.2.
+        seed (int): Random seed for reproducibility in shuffling. Default is 42.
+    Returns:
+        Tuple[tf.data.Dataset, tf.data.Dataset, tf.data.Dataset]: 
+            - train_ds: Processed training dataset with augmentation enabled.
+            - val_ds: Processed validation dataset with augmentation disabled.
+            - test_ds: Processed test dataset with augmentation disabled.
     """
 
     dataset_size = len(X_train)
@@ -75,7 +102,25 @@ def process_batch(image, label,
                   normalize = True,
                   new_size = (96, 96, 3),
                   augment:bool = True):
-    
+    """
+    Process a batch of images with resizing, augmentation, and normalization.
+    Args:
+        image: Input image tensor to be processed.
+        label: Label associated with the image.
+        preprocess_fn (Optional[Callable]): Optional preprocessing function for transfer learning.
+            If provided, applies model-specific preprocessing normalization. Defaults to None.
+        normalize (bool): Whether to apply default normalization by dividing pixel values by 255.0.
+            Defaults to True.
+        new_size (tuple): Target size for image resizing as (height, width, channels).
+            Defaults to (96, 96, 3).
+        augment (bool): Whether to apply data augmentation during processing.
+            Defaults to True.
+    Returns:
+        tuple: A tuple containing:
+            - image: Processed image tensor.
+            - label: Original label associated with the image.
+    """    
+
     image = tf.image.resize(image, (new_size[0], new_size[1]))
 
     if augment:
@@ -91,13 +136,32 @@ def process_batch(image, label,
         
     return image, label
 
-# Apply your batching/preprocessing pipeline to BOTH
+
 def process_pipeline(ds: tf.data.Dataset,
                      batch_size:int,
                      new_size:tuple[int,int,int],
                      preprocess_fn: Optional[Callable] = None,
                      normalize: bool = True,
                      augment:bool = True):
+    """
+    Process a TensorFlow dataset through a batch processing pipeline.
+
+    Applies batching, image preprocessing, normalization, and optional augmentation
+    to the input dataset with automatic tuning and prefetching for optimal performance.
+
+    Args:
+        ds (tf.data.Dataset): The input dataset containing images and labels.
+        batch_size (int): The number of samples per batch.
+        new_size (tuple[int, int, int]): Target image size as (height, width, channels).
+        preprocess_fn (Optional[Callable]): Custom preprocessing function to apply to images.
+            If None, no custom preprocessing is applied. Defaults to None.
+        normalize (bool): Whether to normalize pixel values. Defaults to True.
+        augment (bool): Whether to apply data augmentation. Defaults to True.
+
+    Returns:
+        tf.data.Dataset: A processed dataset with batched, preprocessed, and optionally
+            augmented images, optimized with automatic tuning and prefetching.
+    """
 
     return (
         ds
